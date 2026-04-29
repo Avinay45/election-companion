@@ -14,16 +14,468 @@ export type Database = {
   }
   public: {
     Tables: {
-      [_ in never]: never
+      conversations: {
+        Row: {
+          created_at: string
+          id: string
+          title: string
+          updated_at: string
+          user_id: string | null
+        }
+        Insert: {
+          created_at?: string
+          id?: string
+          title?: string
+          updated_at?: string
+          user_id?: string | null
+        }
+        Update: {
+          created_at?: string
+          id?: string
+          title?: string
+          updated_at?: string
+          user_id?: string | null
+        }
+        Relationships: []
+      }
+      elections: {
+        Row: {
+          announcement_date: string | null
+          created_at: string
+          description: string | null
+          end_date: string | null
+          id: string
+          name: string
+          phases: Json | null
+          result_date: string | null
+          source_url: string | null
+          start_date: string | null
+          state_code: string | null
+          status: Database["public"]["Enums"]["election_status"]
+          type: Database["public"]["Enums"]["election_type"]
+          updated_at: string
+        }
+        Insert: {
+          announcement_date?: string | null
+          created_at?: string
+          description?: string | null
+          end_date?: string | null
+          id?: string
+          name: string
+          phases?: Json | null
+          result_date?: string | null
+          source_url?: string | null
+          start_date?: string | null
+          state_code?: string | null
+          status?: Database["public"]["Enums"]["election_status"]
+          type: Database["public"]["Enums"]["election_type"]
+          updated_at?: string
+        }
+        Update: {
+          announcement_date?: string | null
+          created_at?: string
+          description?: string | null
+          end_date?: string | null
+          id?: string
+          name?: string
+          phases?: Json | null
+          result_date?: string | null
+          source_url?: string | null
+          start_date?: string | null
+          state_code?: string | null
+          status?: Database["public"]["Enums"]["election_status"]
+          type?: Database["public"]["Enums"]["election_type"]
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "elections_state_code_fkey"
+            columns: ["state_code"]
+            isOneToOne: false
+            referencedRelation: "states"
+            referencedColumns: ["code"]
+          },
+        ]
+      }
+      kb_chunks: {
+        Row: {
+          chunk_index: number
+          content: string
+          created_at: string
+          document_id: string
+          embedding: string | null
+          id: string
+          metadata: Json | null
+        }
+        Insert: {
+          chunk_index: number
+          content: string
+          created_at?: string
+          document_id: string
+          embedding?: string | null
+          id?: string
+          metadata?: Json | null
+        }
+        Update: {
+          chunk_index?: number
+          content?: string
+          created_at?: string
+          document_id?: string
+          embedding?: string | null
+          id?: string
+          metadata?: Json | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "kb_chunks_document_id_fkey"
+            columns: ["document_id"]
+            isOneToOne: false
+            referencedRelation: "kb_documents"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      kb_documents: {
+        Row: {
+          category: string | null
+          created_at: string
+          id: string
+          language: Database["public"]["Enums"]["preferred_language"]
+          source: string | null
+          title: string
+        }
+        Insert: {
+          category?: string | null
+          created_at?: string
+          id?: string
+          language?: Database["public"]["Enums"]["preferred_language"]
+          source?: string | null
+          title: string
+        }
+        Update: {
+          category?: string | null
+          created_at?: string
+          id?: string
+          language?: Database["public"]["Enums"]["preferred_language"]
+          source?: string | null
+          title?: string
+        }
+        Relationships: []
+      }
+      messages: {
+        Row: {
+          content: string
+          conversation_id: string
+          created_at: string
+          id: string
+          metadata: Json | null
+          role: string
+        }
+        Insert: {
+          content: string
+          conversation_id: string
+          created_at?: string
+          id?: string
+          metadata?: Json | null
+          role: string
+        }
+        Update: {
+          content?: string
+          conversation_id?: string
+          created_at?: string
+          id?: string
+          metadata?: Json | null
+          role?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "messages_conversation_id_fkey"
+            columns: ["conversation_id"]
+            isOneToOne: false
+            referencedRelation: "conversations"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      notifications: {
+        Row: {
+          body: string | null
+          created_at: string
+          id: string
+          read_at: string | null
+          related_election_id: string | null
+          scheduled_at: string | null
+          sent_at: string | null
+          title: string
+          type: string
+          user_id: string
+        }
+        Insert: {
+          body?: string | null
+          created_at?: string
+          id?: string
+          read_at?: string | null
+          related_election_id?: string | null
+          scheduled_at?: string | null
+          sent_at?: string | null
+          title: string
+          type: string
+          user_id: string
+        }
+        Update: {
+          body?: string | null
+          created_at?: string
+          id?: string
+          read_at?: string | null
+          related_election_id?: string | null
+          scheduled_at?: string | null
+          sent_at?: string | null
+          title?: string
+          type?: string
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "notifications_related_election_id_fkey"
+            columns: ["related_election_id"]
+            isOneToOne: false
+            referencedRelation: "elections"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      polling_booths: {
+        Row: {
+          address: string | null
+          booth_number: string | null
+          constituency: string | null
+          created_at: string
+          district: string
+          id: string
+          landmark: string | null
+          name: string
+          pincode: string | null
+          state_code: string
+        }
+        Insert: {
+          address?: string | null
+          booth_number?: string | null
+          constituency?: string | null
+          created_at?: string
+          district: string
+          id?: string
+          landmark?: string | null
+          name: string
+          pincode?: string | null
+          state_code: string
+        }
+        Update: {
+          address?: string | null
+          booth_number?: string | null
+          constituency?: string | null
+          created_at?: string
+          district?: string
+          id?: string
+          landmark?: string | null
+          name?: string
+          pincode?: string | null
+          state_code?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "polling_booths_state_code_fkey"
+            columns: ["state_code"]
+            isOneToOne: false
+            referencedRelation: "states"
+            referencedColumns: ["code"]
+          },
+        ]
+      }
+      profiles: {
+        Row: {
+          age: number | null
+          created_at: string
+          district: string | null
+          email: string | null
+          email_notifications: boolean
+          full_name: string | null
+          id: string
+          journey_progress: Json
+          language: Database["public"]["Enums"]["preferred_language"] | null
+          pincode: string | null
+          state: string | null
+          updated_at: string
+          voter_status: Database["public"]["Enums"]["voter_status"] | null
+        }
+        Insert: {
+          age?: number | null
+          created_at?: string
+          district?: string | null
+          email?: string | null
+          email_notifications?: boolean
+          full_name?: string | null
+          id: string
+          journey_progress?: Json
+          language?: Database["public"]["Enums"]["preferred_language"] | null
+          pincode?: string | null
+          state?: string | null
+          updated_at?: string
+          voter_status?: Database["public"]["Enums"]["voter_status"] | null
+        }
+        Update: {
+          age?: number | null
+          created_at?: string
+          district?: string | null
+          email?: string | null
+          email_notifications?: boolean
+          full_name?: string | null
+          id?: string
+          journey_progress?: Json
+          language?: Database["public"]["Enums"]["preferred_language"] | null
+          pincode?: string | null
+          state?: string | null
+          updated_at?: string
+          voter_status?: Database["public"]["Enums"]["voter_status"] | null
+        }
+        Relationships: []
+      }
+      quiz_attempts: {
+        Row: {
+          answers: Json
+          created_at: string
+          id: string
+          questions: Json
+          score: number
+          state_code: string | null
+          total: number
+          user_id: string | null
+        }
+        Insert: {
+          answers?: Json
+          created_at?: string
+          id?: string
+          questions?: Json
+          score?: number
+          state_code?: string | null
+          total?: number
+          user_id?: string | null
+        }
+        Update: {
+          answers?: Json
+          created_at?: string
+          id?: string
+          questions?: Json
+          score?: number
+          state_code?: string | null
+          total?: number
+          user_id?: string | null
+        }
+        Relationships: []
+      }
+      rate_limits: {
+        Row: {
+          bucket: string
+          count: number
+          id: string
+          window_start: string
+        }
+        Insert: {
+          bucket: string
+          count?: number
+          id: string
+          window_start?: string
+        }
+        Update: {
+          bucket?: string
+          count?: number
+          id?: string
+          window_start?: string
+        }
+        Relationships: []
+      }
+      states: {
+        Row: {
+          code: string
+          name: string
+          name_hi: string | null
+          name_te: string | null
+          type: string
+        }
+        Insert: {
+          code: string
+          name: string
+          name_hi?: string | null
+          name_te?: string | null
+          type?: string
+        }
+        Update: {
+          code?: string
+          name?: string
+          name_hi?: string | null
+          name_te?: string | null
+          type?: string
+        }
+        Relationships: []
+      }
+      user_roles: {
+        Row: {
+          created_at: string
+          id: string
+          role: Database["public"]["Enums"]["app_role"]
+          user_id: string
+        }
+        Insert: {
+          created_at?: string
+          id?: string
+          role: Database["public"]["Enums"]["app_role"]
+          user_id: string
+        }
+        Update: {
+          created_at?: string
+          id?: string
+          role?: Database["public"]["Enums"]["app_role"]
+          user_id?: string
+        }
+        Relationships: []
+      }
     }
     Views: {
       [_ in never]: never
     }
     Functions: {
-      [_ in never]: never
+      has_role: {
+        Args: {
+          _role: Database["public"]["Enums"]["app_role"]
+          _user_id: string
+        }
+        Returns: boolean
+      }
+      match_kb_chunks: {
+        Args: {
+          filter_language?: string
+          match_count?: number
+          query_embedding: string
+        }
+        Returns: {
+          content: string
+          document_title: string
+          id: string
+          similarity: number
+          source: string
+        }[]
+      }
     }
     Enums: {
-      [_ in never]: never
+      app_role: "admin" | "moderator" | "user"
+      election_status: "upcoming" | "announced" | "ongoing" | "completed"
+      election_type:
+        | "general"
+        | "state_assembly"
+        | "by_election"
+        | "local_body"
+        | "presidential"
+      preferred_language: "en" | "hi" | "te"
+      voter_status: "not_registered" | "applied" | "registered" | "unsure"
     }
     CompositeTypes: {
       [_ in never]: never
@@ -150,6 +602,18 @@ export type CompositeTypes<
 
 export const Constants = {
   public: {
-    Enums: {},
+    Enums: {
+      app_role: ["admin", "moderator", "user"],
+      election_status: ["upcoming", "announced", "ongoing", "completed"],
+      election_type: [
+        "general",
+        "state_assembly",
+        "by_election",
+        "local_body",
+        "presidential",
+      ],
+      preferred_language: ["en", "hi", "te"],
+      voter_status: ["not_registered", "applied", "registered", "unsure"],
+    },
   },
 } as const
