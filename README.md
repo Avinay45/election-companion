@@ -134,13 +134,6 @@ npm run dev
 
 ---
 
-## 🧪 Demo
-
-👉 Live Demo: [Add your deployed link]
-👉 Video Demo: [Add demo video link]
-
----
-
 ## 🎯 Use Cases
 
 - First-time voters
@@ -165,12 +158,6 @@ Users are encouraged to verify details with official sources such as the Electio
 
 ---
 
-## 🏆 Hackathon Submission
-
-Built for **Hack2Skill Challenge 2 (2026)**
-
----
-
 ## 💡 Future Improvements
 
 - Real-time ECI API integration
@@ -179,7 +166,3 @@ Built for **Hack2Skill Challenge 2 (2026)**
 - Advanced analytics dashboard
 
 ---
-
-## 📜 License
-
-MIT License
