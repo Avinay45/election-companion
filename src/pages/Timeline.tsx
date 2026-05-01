@@ -15,10 +15,10 @@ interface Election {
 interface State { code: string; name: string }
 
 const statusColor: Record<string, string> = {
-  upcoming: 'bg-accent/15 text-accent border-accent/30',
+  upcoming: 'bg-muted text-muted-foreground border-border',
   announced: 'bg-warning/15 text-warning border-warning/30',
-  ongoing: 'bg-primary/15 text-primary border-primary/30',
-  completed: 'bg-muted text-muted-foreground border-border',
+  ongoing: 'bg-accent/15 text-accent border-accent/40',
+  completed: 'bg-secondary/10 text-secondary border-secondary/30',
 };
 
 export default function Timeline() {
@@ -85,15 +85,15 @@ export default function Timeline() {
               const activePhaseIdx = e.status === 'ongoing' ? findActivePhase(e.phases) : -1;
               return (
                 <motion.div key={e.id} initial={{ opacity: 0, x: -10 }} whileInView={{ opacity: 1, x: 0 }} viewport={{ once: true }} transition={{ delay: i * 0.05 }} className="relative pl-12 sm:pl-16">
-                  <span className={`absolute left-2 sm:left-4 top-4 h-5 w-5 rounded-full border-2 border-background ${e.status === 'ongoing' ? 'bg-primary pulse-ring' : e.status === 'upcoming' ? 'bg-accent' : 'bg-muted-foreground'}`} />
-                  <Card className="p-6 bg-gradient-card hover:shadow-elevated transition-shadow">
+                  <span className={`absolute left-2 sm:left-4 top-4 h-5 w-5 rounded-full border-2 border-background ${e.status === 'ongoing' ? 'bg-accent pulse-ring' : e.status === 'completed' ? 'bg-secondary' : 'bg-muted-foreground'}`} />
+                  <Card className="p-6 bg-gradient-card card-hover">
                     <div className="flex flex-wrap items-start justify-between gap-2 mb-2">
                       <div>
                         <div className="flex items-center gap-2 flex-wrap">
                           <h3 className="font-display text-xl font-semibold">{e.name}</h3>
                           {e.status === 'ongoing' && (
-                            <span className="inline-flex items-center gap-1 text-[10px] font-semibold uppercase tracking-wider px-2 py-0.5 rounded-full bg-primary/15 text-primary border border-primary/30">
-                              <span className="h-1.5 w-1.5 rounded-full bg-primary animate-pulse" />
+                            <span className="inline-flex items-center gap-1 text-[10px] font-semibold uppercase tracking-wider px-2 py-0.5 rounded-full bg-accent/15 text-accent border border-accent/40">
+                              <span className="h-1.5 w-1.5 rounded-full bg-accent animate-pulse" />
                               <Radio className="h-3 w-3" /> Live Phase
                             </span>
                           )}
@@ -116,10 +116,17 @@ export default function Timeline() {
                         <div className="flex flex-wrap gap-2">
                           {e.phases.map((p: any, idx: number) => {
                             const isActive = idx === activePhaseIdx;
+                            const isPast = e.status === 'completed' || (p?.date && new Date(p.date) < new Date() && !isActive);
                             return (
                               <span
                                 key={idx}
-                                className={`text-xs px-2.5 py-1 rounded-md border ${isActive ? 'bg-primary/15 text-primary border-primary/30 font-semibold' : 'bg-muted border-transparent'}`}
+                                className={`text-xs px-2.5 py-1 rounded-md border ${
+                                  isActive
+                                    ? 'bg-accent/15 text-accent border-accent/40 font-semibold'
+                                    : isPast
+                                    ? 'bg-secondary/10 text-secondary border-secondary/30'
+                                    : 'bg-muted text-muted-foreground border-transparent'
+                                }`}
                               >
                                 {isActive && <span className="mr-1">● Live</span>}
                                 Phase {p.phase ?? idx + 1}: {fmt(p.date)} {p.constituencies && `· ${p.constituencies} seats`}
@@ -130,7 +137,7 @@ export default function Timeline() {
                       </div>
                     )}
                     {e.source_url && (
-                      <a href={e.source_url} target="_blank" rel="noopener noreferrer" className="inline-flex items-center gap-1.5 text-xs text-primary mt-4 hover:underline">
+                      <a href={e.source_url} target="_blank" rel="noopener noreferrer" className="inline-flex items-center gap-1.5 text-xs text-accent mt-4 hover:underline underline-offset-2">
                         Source <ExternalLink className="h-3 w-3" />
                       </a>
                     )}

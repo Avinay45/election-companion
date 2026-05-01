@@ -127,7 +127,7 @@ export default function Chat() {
           </div>
         ) : messages.map((m, i) => (
           <div key={i} className={`flex ${m.role === 'user' ? 'justify-end' : 'justify-start'}`}>
-            <Card className={`max-w-[85%] p-4 ${m.role === 'user' ? 'bg-gradient-brand text-primary-foreground border-0' : 'bg-background'}`}>
+            <Card className={`max-w-[85%] p-4 card-hover ${m.role === 'user' ? 'bg-accent/15 border-accent/30 text-foreground' : 'bg-card border-primary/20'}`}>
               {m.role === 'assistant' ? (
                 <>
                   <div className="prose prose-sm dark:prose-invert max-w-none prose-p:my-2 prose-ul:my-2 prose-ol:my-2 prose-headings:font-display prose-h2:text-base prose-h2:mt-3 prose-h2:mb-1.5">
@@ -146,8 +146,8 @@ export default function Chat() {
                         {m.sources.map((s, idx) => {
                           const isUrl = s.source && /^https?:\/\//.test(s.source);
                           const chip = (
-                            <span className="inline-flex items-center gap-1 text-xs px-2 py-1 rounded-md bg-muted border border-border/60 hover:border-primary/40 transition-colors">
-                              <span className="text-muted-foreground">[{idx + 1}]</span> {s.title}
+                            <span className="inline-flex items-center gap-1 text-xs px-2 py-1 rounded-md bg-secondary/10 text-secondary border border-secondary/30 hover:border-secondary/60 transition-colors">
+                              <span className="opacity-70">[{idx + 1}]</span> {s.title}
                               {isUrl && <ExternalLink className="h-3 w-3 opacity-60" />}
                             </span>
                           );
@@ -176,9 +176,9 @@ export default function Chat() {
             type="button"
             onClick={() => send(qa.query)}
             disabled={loading}
-            className="inline-flex items-center gap-1.5 text-xs px-3 py-1.5 rounded-full border border-border/60 bg-background hover:border-primary/50 hover:bg-primary/5 transition-colors disabled:opacity-50"
+            className="inline-flex items-center gap-1.5 text-xs px-3 py-1.5 rounded-full border border-border/60 bg-background hover:border-accent hover:bg-accent/10 hover:shadow-glow transition-all disabled:opacity-50"
           >
-            <qa.icon className="h-3.5 w-3.5 text-primary" />
+            <qa.icon className="h-3.5 w-3.5 text-accent" />
             {qa.label}
           </button>
         ))}
@@ -195,7 +195,7 @@ export default function Chat() {
           disabled={loading}
         />
         <Button type="button" variant="outline" size="icon" onClick={startVoice} disabled={loading} className="h-[52px] w-[52px] shrink-0"><Mic className="h-4 w-4" /></Button>
-        <Button type="submit" size="icon" disabled={loading || !input.trim()} className="h-[52px] w-[52px] shrink-0 bg-gradient-brand text-primary-foreground">
+        <Button type="submit" size="icon" disabled={loading || !input.trim()} className="h-[52px] w-[52px] shrink-0 bg-accent hover:bg-accent-hover text-accent-foreground transition-shadow hover:shadow-glow">
           {loading ? <Loader2 className="h-4 w-4 animate-spin" /> : <Send className="h-4 w-4" />}
         </Button>
       </form>

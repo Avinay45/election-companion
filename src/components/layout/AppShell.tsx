@@ -5,6 +5,7 @@ import { Footer } from './Footer';
 export function AppShell() {
   return (
     <div className="min-h-screen flex flex-col bg-background">
+      <div className="tricolor-bar w-full" aria-hidden />
       <Header />
       <main className="flex-1"><Outlet /></main>
       <Footer />
