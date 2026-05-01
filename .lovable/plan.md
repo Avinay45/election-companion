@@ -1,29 +1,51 @@
-## Goal
-Add RAG (Retrieval-Augmented Generation) to the chat edge function only. No UI changes, no other component changes.
-
 ## Scope
-Modify only `supabase/functions/chat/index.ts`. Everything else stays untouched.
 
-## How it works
+Minimal, surgical edits to: chat edge function, Chat.tsx, Timeline.tsx. No other files touched.
+
+## 1. Chat edge function (`supabase/functions/chat/index.ts`)
+
+- Add lightweight in-memory LRU cache (Map, max 50, 10-min TTL) keyed by `${language}::${normalizedQuery}` storing retrieved context string.
+- Add `shouldUseRAG(q)` — runs RAG only when query length > 8 chars AND matches keywords: `how|what|why|when|where|process|register|eligib|booth|nota|epic|form|vote|polling|election|phase|result`. Otherwise skip embedding/RPC for sub-second latency.
+- Strengthen system prompt to enforce structured output:
+  ```
+  Format every answer as Markdown with these sections (omit empty ones):
+  ## Answer
+  short 1–2 sentence explanation
+  ## Steps
+  1. ...
+  ## Key points
+  - ...
+  ## Sources
+  - [1] Title
+  ```
+  Cite `[n]` only when context used. If no context, omit Sources.
+- Return retrieved source titles in a custom SSE event so the UI can render the Sources panel even before the model finishes — actually simpler: prepend a single non-streamed SSE line `data: {"sources":[...]}\n\n` before piping the upstream stream. Frontend will parse it.
+
+## 2. Chat UI (`src/pages/Chat.tsx`)
+
+- Add 3 Quick Action buttons above the input (visible always): "Check Eligibility", "Find Polling Booth", "Election Timeline" — each calls `send(prefilledText)`.
+- Parse the leading `{"sources":[...]}` SSE frame; store on the assistant message as `sources?: {title:string,source?:string}[]`.
+- Render a compact "Sources" footer below assistant markdown (small chips with title, link icon if `source` is URL).
+- Replace the current spinner-while-empty with a 3-dot typing animation (pure CSS, inline).
+- Keep all existing styles, gradient, layout, suggestions grid (suggestions only render when `messages.length===0`; quick actions render always).
+
+## 3. Timeline (`src/pages/Timeline.tsx`)
+
+- For each election with `status==='ongoing'`, find the active phase: the phase with the latest `date <= today` (or first upcoming phase if none past). Mark it visually:
+  - Add a small `Live Phase` badge next to the election title with a pulsing dot.
+  - In the phases chip row, the active phase chip gets `bg-primary/15 text-primary border border-primary/30` and a `● Live` prefix.
+- No data-shape changes, no new fetches.
+
+## Files modified
 
 ```text
-user msg → embed(last user msg) → match_kb_chunks RPC → top-K chunks
-        → inject as "Context" block in system prompt → stream LLM reply
+supabase/functions/chat/index.ts
+src/pages/Chat.tsx
+src/pages/Timeline.tsx
 ```
 
-## Implementation steps
-
-1. **Embed the latest user query** via Lovable AI Gateway embeddings endpoint (`/v1/embeddings`) using `google/text-embedding-004` (768-dim). The existing `kb_chunks.embedding` column already uses pgvector; we'll match its dimension. If the dimension already provisioned in the DB differs, we fall back gracefully (catch error, skip RAG, continue chat).
-2. **Retrieve top chunks** by calling the existing `match_kb_chunks` RPC via the Supabase REST endpoint using the service role key (already available as `SUPABASE_SERVICE_ROLE_KEY`). Pass `match_count: 5` and `filter_language: language`.
-3. **Build context block**: concatenate retrieved chunks with their `document_title` / `source` as inline citations: `[1] Title — source`. Cap total context at ~3000 chars.
-4. **Inject into system prompt**: append a `Knowledge Base Context:` section + an instruction to cite using `[n]` markers when the answer uses retrieved info. Keep neutrality rules intact.
-5. **Resilience**: wrap retrieval in try/catch. On any failure (no KB rows, embedding error, RPC error), log and proceed without RAG — chat must never break.
-6. **No streaming change**: still pass `stream: true` and pipe `r.body` back. Frontend behavior unchanged.
-
-## Files touched
-- `supabase/functions/chat/index.ts` (only)
-
 ## Out of scope
-- No frontend changes (`Chat.tsx` untouched)
-- No DB migrations (kb tables/RPC already exist)
-- No KB ingestion (separate task — current `kb_chunks` may be empty; chat will simply behave as before until chunks exist)
+
+- No new tables / migrations / edge functions.
+- No changes to BoothFinder, Journey, Quiz, layout, auth, header, or design tokens.
+- Voice input button stays as-is.

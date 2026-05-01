@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react';
 import { motion } from 'framer-motion';
-import { Calendar, MapPin, ExternalLink, Loader2, Filter } from 'lucide-react';
+import { Calendar, MapPin, ExternalLink, Loader2, Filter, Radio } from 'lucide-react';
 import { Card } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
@@ -82,13 +82,22 @@ export default function Timeline() {
           <div className="space-y-6">
             {filtered.map((e, i) => {
               const stateName = states.find(s => s.code === e.state_code)?.name ?? 'National';
+              const activePhaseIdx = e.status === 'ongoing' ? findActivePhase(e.phases) : -1;
               return (
                 <motion.div key={e.id} initial={{ opacity: 0, x: -10 }} whileInView={{ opacity: 1, x: 0 }} viewport={{ once: true }} transition={{ delay: i * 0.05 }} className="relative pl-12 sm:pl-16">
                   <span className={`absolute left-2 sm:left-4 top-4 h-5 w-5 rounded-full border-2 border-background ${e.status === 'ongoing' ? 'bg-primary pulse-ring' : e.status === 'upcoming' ? 'bg-accent' : 'bg-muted-foreground'}`} />
                   <Card className="p-6 bg-gradient-card hover:shadow-elevated transition-shadow">
                     <div className="flex flex-wrap items-start justify-between gap-2 mb-2">
                       <div>
-                        <h3 className="font-display text-xl font-semibold">{e.name}</h3>
+                        <div className="flex items-center gap-2 flex-wrap">
+                          <h3 className="font-display text-xl font-semibold">{e.name}</h3>
+                          {e.status === 'ongoing' && (
+                            <span className="inline-flex items-center gap-1 text-[10px] font-semibold uppercase tracking-wider px-2 py-0.5 rounded-full bg-primary/15 text-primary border border-primary/30">
+                              <span className="h-1.5 w-1.5 rounded-full bg-primary animate-pulse" />
+                              <Radio className="h-3 w-3" /> Live Phase
+                            </span>
+                          )}
+                        </div>
                         <p className="text-sm text-muted-foreground flex items-center gap-1.5 mt-1">
                           <MapPin className="h-3.5 w-3.5" /> {stateName} · {e.type.replace('_',' ')}
                         </p>
@@ -105,11 +114,18 @@ export default function Timeline() {
                       <div className="mt-4 pt-4 border-t border-border/60">
                         <p className="text-xs uppercase tracking-wider text-muted-foreground font-medium mb-2">Phases</p>
                         <div className="flex flex-wrap gap-2">
-                          {e.phases.map((p: any, idx: number) => (
-                            <span key={idx} className="text-xs px-2.5 py-1 rounded-md bg-muted">
-                              Phase {p.phase ?? idx + 1}: {fmt(p.date)} {p.constituencies && `· ${p.constituencies} seats`}
-                            </span>
-                          ))}
+                          {e.phases.map((p: any, idx: number) => {
+                            const isActive = idx === activePhaseIdx;
+                            return (
+                              <span
+                                key={idx}
+                                className={`text-xs px-2.5 py-1 rounded-md border ${isActive ? 'bg-primary/15 text-primary border-primary/30 font-semibold' : 'bg-muted border-transparent'}`}
+                              >
+                                {isActive && <span className="mr-1">● Live</span>}
+                                Phase {p.phase ?? idx + 1}: {fmt(p.date)} {p.constituencies && `· ${p.constituencies} seats`}
+                              </span>
+                            );
+                          })}
                         </div>
                       </div>
                     )}
@@ -140,4 +156,16 @@ function DateBlock({ icon, label, date }: { icon: React.ReactNode; label: string
 function fmt(d: string | null | undefined) {
   if (!d) return '—';
   return new Date(d).toLocaleDateString('en-IN', { day: 'numeric', month: 'short', year: 'numeric' });
+}
+
+function findActivePhase(phases: any[] | undefined): number {
+  if (!Array.isArray(phases) || phases.length === 0) return -1;
+  const today = new Date(); today.setHours(0, 0, 0, 0);
+  const dated = phases.map((p, i) => ({ i, t: p?.date ? new Date(p.date).getTime() : NaN }));
+  // latest phase whose date <= today
+  const past = dated.filter(d => !isNaN(d.t) && d.t <= today.getTime()).sort((a, b) => b.t - a.t);
+  if (past.length) return past[0].i;
+  // else nearest upcoming
+  const upcoming = dated.filter(d => !isNaN(d.t) && d.t > today.getTime()).sort((a, b) => a.t - b.t);
+  return upcoming.length ? upcoming[0].i : 0;
 }
