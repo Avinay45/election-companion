@@ -26,14 +26,14 @@ export function Header() {
   ];
 
   return (
-    <header className="sticky top-0 z-40 w-full border-b border-border/60 bg-background/80 backdrop-blur-lg">
+    <header className="sticky top-0 z-40 w-full border-b border-primary/20 bg-primary text-primary-foreground backdrop-blur-lg">
       <div className="container flex h-16 items-center justify-between">
         <div className="flex items-center gap-8">
           <Logo />
           <nav className="hidden md:flex items-center gap-1">
             {links.map(l => (
               <NavLink key={l.to} to={l.to} className={({ isActive }) =>
-                `px-3 py-2 rounded-md text-sm font-medium transition-colors hover:text-primary ${isActive ? 'text-primary' : 'text-muted-foreground'}`
+                `px-3 py-2 rounded-md text-sm font-medium transition-colors hover:text-accent ${isActive ? 'text-accent' : 'text-primary-foreground/75'}`
               }>{l.label}</NavLink>
             ))}
           </nav>
@@ -44,7 +44,7 @@ export function Header() {
           {user ? (
             <DropdownMenu>
               <DropdownMenuTrigger asChild>
-                <Button variant="ghost" size="icon" className="rounded-full">
+                <Button variant="ghost" size="icon" className="rounded-full text-primary-foreground hover:text-accent hover:bg-primary-foreground/10">
                   <UserIcon className="h-4 w-4" />
                 </Button>
               </DropdownMenuTrigger>
@@ -59,25 +59,25 @@ export function Header() {
               </DropdownMenuContent>
             </DropdownMenu>
           ) : (
-            <Button asChild size="sm" className="hidden sm:inline-flex bg-gradient-brand hover:opacity-90 text-primary-foreground shadow-soft">
+            <Button asChild size="sm" className="hidden sm:inline-flex bg-accent hover:bg-[hsl(var(--accent-hover))] text-accent-foreground shadow-soft transition-shadow hover:shadow-glow">
               <Link to="/auth"><Sparkles className="h-4 w-4 mr-1.5" />{tr('get_started', lang)}</Link>
             </Button>
           )}
           <Sheet open={open} onOpenChange={setOpen}>
             <SheetTrigger asChild>
-              <Button variant="ghost" size="icon" className="md:hidden"><Menu className="h-5 w-5" /></Button>
+              <Button variant="ghost" size="icon" className="md:hidden text-primary-foreground hover:text-accent hover:bg-primary-foreground/10"><Menu className="h-5 w-5" /></Button>
             </SheetTrigger>
             <SheetContent side="right" className="w-72">
               <div className="flex flex-col gap-1 mt-8">
                 {links.map(l => (
                   <NavLink key={l.to} to={l.to} onClick={() => setOpen(false)}
-                    className={({ isActive }) => `px-4 py-3 rounded-lg text-base ${isActive ? 'bg-muted text-primary font-semibold' : 'text-foreground'}`}>
+                    className={({ isActive }) => `px-4 py-3 rounded-lg text-base ${isActive ? 'bg-muted text-accent font-semibold' : 'text-foreground'}`}>
                     {l.label}
                   </NavLink>
                 ))}
                 {!user && (
                   <Link to="/auth" onClick={() => setOpen(false)} className="mt-4 mx-4">
-                    <Button className="w-full bg-gradient-brand text-primary-foreground">{tr('get_started', lang)}</Button>
+                    <Button className="w-full bg-accent hover:bg-[hsl(var(--accent-hover))] text-accent-foreground">{tr('get_started', lang)}</Button>
                   </Link>
                 )}
               </div>
