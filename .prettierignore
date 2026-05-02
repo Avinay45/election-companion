@@ -1,0 +1,9 @@
+dist
+build
+node_modules
+coverage
+.lovable
+supabase/migrations
+src/integrations/supabase/types.ts
+*.min.js
+*.min.css
