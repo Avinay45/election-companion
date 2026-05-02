@@ -1,4 +1,6 @@
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
+import { z } from "https://esm.sh/zod@3.23.8";
+import { createClient } from "https://esm.sh/@supabase/supabase-js@2.45.0";
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
@@ -22,6 +24,61 @@ Output format (Markdown, omit empty sections, keep concise):
 - Short bullets for facts, eligibility, documents, deadlines.
 ## Sources
 - [1] Document title (only when Knowledge Base Context was used; cite [n] inline above).`;
+
+// ---- Input validation ----
+const MessageSchema = z.object({
+  role: z.enum(["user", "assistant", "system"]).optional(),
+  content: z.string().min(1).max(4000),
+});
+const BodySchema = z.object({
+  messages: z.array(MessageSchema).min(1).max(40),
+  language: z.enum(["en", "hi", "te"]).optional(),
+});
+
+// ---- Prompt-injection / sanitization ----
+// Strips common override attempts and role-tag spoofing without altering legitimate questions.
+const INJECTION_PATTERNS: RegExp[] = [
+  /ignore (?:all |the )?(?:previous|prior|above) (?:instructions?|messages?|prompts?)/gi,
+  /disregard (?:all |the )?(?:previous|prior|above) (?:instructions?|messages?|prompts?)/gi,
+  /forget (?:all |the )?(?:previous|prior|above) (?:instructions?|messages?|prompts?)/gi,
+  /you are now [^.\n]{0,80}/gi,
+  /act as (?:a |an )?(?:dan|developer mode|jailbroken|unfiltered)[^.\n]{0,80}/gi,
+  /system\s*[:>]\s*/gi,
+  /<\s*\/?\s*(?:system|assistant|user)\s*>/gi,
+  /\[\s*(?:system|assistant|user)\s*\]/gi,
+  /```(?:system|assistant)/gi,
+];
+function sanitizeUserContent(raw: string): string {
+  let s = String(raw ?? "");
+  // Remove control chars except newline/tab
+  s = s.replace(/[\u0000-\u0008\u000B-\u001F\u007F]/g, "");
+  for (const re of INJECTION_PATTERNS) s = s.replace(re, "[filtered]");
+  // Collapse very long whitespace runs
+  s = s.replace(/\n{4,}/g, "\n\n\n").replace(/[ \t]{200,}/g, " ");
+  return s.slice(0, 4000).trim();
+}
+
+// ---- Per-user in-memory rate limit (per isolate) ----
+const RL_WINDOW_MS = 60_000;
+const RL_MAX = 20; // requests per minute per user/ip
+const rlMap = new Map<string, { count: number; resetAt: number }>();
+function checkRateLimit(key: string): { ok: boolean; retryAfter: number } {
+  const now = Date.now();
+  const entry = rlMap.get(key);
+  if (!entry || entry.resetAt <= now) {
+    rlMap.set(key, { count: 1, resetAt: now + RL_WINDOW_MS });
+    return { ok: true, retryAfter: 0 };
+  }
+  if (entry.count >= RL_MAX) {
+    return { ok: false, retryAfter: Math.ceil((entry.resetAt - now) / 1000) };
+  }
+  entry.count += 1;
+  return { ok: true, retryAfter: 0 };
+}
+function getClientIp(req: Request): string {
+  const xf = req.headers.get("x-forwarded-for") ?? "";
+  return (xf.split(",")[0] || req.headers.get("cf-connecting-ip") || "anon").trim();
+}
 
 // ---- Lightweight in-memory cache for RAG context (per isolate) ----
 const RAG_TTL_MS = 10 * 60 * 1000;
@@ -125,14 +182,51 @@ async function retrieveContext(
 serve(async (req) => {
   if (req.method === "OPTIONS") return new Response(null, { headers: corsHeaders });
   try {
-    const { messages, language } = await req.json();
-    if (!Array.isArray(messages) || messages.length === 0) {
-      return new Response(JSON.stringify({ error: "messages required" }), { status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" } });
+    // Identify caller (user via JWT if present, else IP) for rate limiting
+    let rlKey = `ip:${getClientIp(req)}`;
+    const authHeader = req.headers.get("Authorization") ?? "";
+    const token = authHeader.replace(/^Bearer\s+/i, "");
+    if (token) {
+      try {
+        const SUPABASE_URL = Deno.env.get("SUPABASE_URL");
+        const SERVICE_KEY = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY");
+        if (SUPABASE_URL && SERVICE_KEY) {
+          const admin = createClient(SUPABASE_URL, SERVICE_KEY);
+          const { data } = await admin.auth.getUser(token);
+          if (data?.user?.id) rlKey = `user:${data.user.id}`;
+        }
+      } catch (_) { /* fall back to ip-based key */ }
     }
-    const cleaned = messages.slice(-20).map((m: any) => ({
-      role: m.role === "assistant" ? "assistant" : "user",
-      content: String(m.content ?? "").slice(0, 4000),
-    }));
+    const rl = checkRateLimit(rlKey);
+    if (!rl.ok) {
+      return new Response(JSON.stringify({ error: "Too many requests, slow down." }), {
+        status: 429,
+        headers: { ...corsHeaders, "Content-Type": "application/json", "Retry-After": String(rl.retryAfter) },
+      });
+    }
+
+    // Validate body
+    let body: unknown;
+    try { body = await req.json(); } catch {
+      return new Response(JSON.stringify({ error: "invalid JSON" }), { status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" } });
+    }
+    const parsed = BodySchema.safeParse(body);
+    if (!parsed.success) {
+      return new Response(JSON.stringify({ error: "invalid input", details: parsed.error.flatten().fieldErrors }), {
+        status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" },
+      });
+    }
+    const { messages, language } = parsed.data;
+    const cleaned = messages.slice(-20).map((m) => {
+      const role = m.role === "assistant" ? "assistant" : "user";
+      const content = role === "user" ? sanitizeUserContent(m.content) : String(m.content).slice(0, 4000);
+      return { role, content };
+    }).filter((m) => m.content.length > 0);
+    if (cleaned.length === 0) {
+      return new Response(JSON.stringify({ error: "empty messages after sanitization" }), {
+        status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" },
+      });
+    }
     const LOVABLE_API_KEY = Deno.env.get("LOVABLE_API_KEY");
     if (!LOVABLE_API_KEY) throw new Error("LOVABLE_API_KEY not configured");
 
