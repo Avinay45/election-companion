@@ -182,26 +182,48 @@ async function retrieveContext(
 serve(async (req) => {
   if (req.method === "OPTIONS") return new Response(null, { headers: corsHeaders });
   try {
-    // Identify caller (user via JWT if present, else IP) for rate limiting
-    let rlKey = `ip:${getClientIp(req)}`;
-    const authHeader = req.headers.get("Authorization") ?? "";
-    const token = authHeader.replace(/^Bearer\s+/i, "");
-    if (token) {
-      try {
-        const SUPABASE_URL = Deno.env.get("SUPABASE_URL");
-        const SERVICE_KEY = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY");
-        if (SUPABASE_URL && SERVICE_KEY) {
-          const admin = createClient(SUPABASE_URL, SERVICE_KEY);
-          const { data } = await admin.auth.getUser(token);
-          if (data?.user?.id) rlKey = `user:${data.user.id}`;
-        }
-      } catch (_) { /* fall back to ip-based key */ }
-    }
-    const rl = checkRateLimit(rlKey);
-    if (!rl.ok) {
+    // Circuit-breaker rate limit by IP (protects auth lookup itself from bursts)
+    const ipKey = `ip:${getClientIp(req)}`;
+    const ipRl = checkRateLimit(ipKey);
+    if (!ipRl.ok) {
       return new Response(JSON.stringify({ error: "Too many requests, slow down." }), {
         status: 429,
-        headers: { ...corsHeaders, "Content-Type": "application/json", "Retry-After": String(rl.retryAfter) },
+        headers: { ...corsHeaders, "Content-Type": "application/json", "Retry-After": String(ipRl.retryAfter) },
+      });
+    }
+
+    // Require a valid Supabase user JWT — reject unauthenticated callers (prevents anon-key abuse).
+    const authHeader = req.headers.get("Authorization") ?? "";
+    const token = authHeader.replace(/^Bearer\s+/i, "");
+    if (!token) {
+      return new Response(JSON.stringify({ error: "Authentication required." }), {
+        status: 401, headers: { ...corsHeaders, "Content-Type": "application/json" },
+      });
+    }
+    const SUPABASE_URL = Deno.env.get("SUPABASE_URL");
+    const SERVICE_KEY = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY");
+    if (!SUPABASE_URL || !SERVICE_KEY) {
+      return new Response(JSON.stringify({ error: "Server not configured." }), {
+        status: 500, headers: { ...corsHeaders, "Content-Type": "application/json" },
+      });
+    }
+    let userId: string | null = null;
+    try {
+      const admin = createClient(SUPABASE_URL, SERVICE_KEY);
+      const { data, error } = await admin.auth.getUser(token);
+      if (error || !data?.user?.id) throw new Error("invalid token");
+      userId = data.user.id;
+    } catch (_) {
+      return new Response(JSON.stringify({ error: "Invalid or expired session." }), {
+        status: 401, headers: { ...corsHeaders, "Content-Type": "application/json" },
+      });
+    }
+    // Per-user rate limit (in addition to IP circuit breaker above)
+    const userRl = checkRateLimit(`user:${userId}`);
+    if (!userRl.ok) {
+      return new Response(JSON.stringify({ error: "Too many requests, slow down." }), {
+        status: 429,
+        headers: { ...corsHeaders, "Content-Type": "application/json", "Retry-After": String(userRl.retryAfter) },
       });
     }
 
